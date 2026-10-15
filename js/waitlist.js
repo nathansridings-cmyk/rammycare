@@ -3,8 +3,35 @@
   if (!form) return;
 
   var message = document.getElementById("form-message");
+  var planNote = document.getElementById("plan-note");
   var submitBtn = form.querySelector('button[type="submit"]');
   var FORMSUBMIT_URL = "https://formsubmit.co/ajax/nathanridings5@gmail.com";
+  var PLAN_NOTES = {
+    family: "Plan noted: Family. $14.99 a month for one home, with a 30-day free trial.",
+    "rest-home": "Plan noted: Rest Home. $9.99 a month per resident, with a 30-day free trial."
+  };
+
+  function chosenPlan() {
+    var query = window.location.search || "";
+    var hash = window.location.hash || "";
+    var hashQuery = hash.indexOf("?");
+    if (!query && hashQuery !== -1) query = hash.slice(hashQuery);
+    var plan = "";
+    try {
+      plan = (new URLSearchParams(query).get("plan") || "").toLowerCase();
+    } catch (err) {
+      plan = "";
+    }
+    if (plan === "resthome" || plan === "rest_home") plan = "rest-home";
+    if (!PLAN_NOTES[plan]) return null;
+    return { id: plan, label: plan === "family" ? "Family" : "Rest Home" };
+  }
+
+  var plan = chosenPlan();
+  if (plan && planNote) {
+    planNote.hidden = false;
+    planNote.textContent = PLAN_NOTES[plan.id];
+  }
 
   function show(text, kind) {
     message.hidden = false;
@@ -59,22 +86,25 @@
     submitBtn.disabled = true;
     show("Sending…", "pending");
 
+    var payload = {
+      name: name,
+      email: email,
+      who: who,
+      message: note,
+      _replyto: email,
+      _subject: plan ? "Rammy waitlist — " + plan.label + " plan" : "Rammy waitlist",
+      _template: "table",
+      _captcha: "false"
+    };
+    if (plan) payload.plan = plan.label;
+
     fetch(FORMSUBMIT_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json"
       },
-      body: JSON.stringify({
-        name: name,
-        email: email,
-        who: who,
-        message: note,
-        _replyto: email,
-        _subject: "Rammy waitlist",
-        _template: "table",
-        _captcha: "false"
-      })
+      body: JSON.stringify(payload)
     }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (data) {
         return { ok: res.ok, data: data };
